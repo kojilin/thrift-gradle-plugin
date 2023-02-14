@@ -93,7 +93,11 @@ abstract class CompileThrift : DefaultTask() {
     }
 
     fun createGenFolder(createGenFolder: Boolean) {
+        if (this.createGenFolder.get() == createGenFolder)
+            return
+        val oldOutputDir = currentOutputDir()
         this.createGenFolder.set(createGenFolder)
+        addSourceDir(oldOutputDir)
     }
 
     fun generator(gen: String, vararg args: String) {
@@ -161,8 +165,9 @@ abstract class CompileThrift : DefaultTask() {
             makeAsDependency(sourceDir)
         else {
             project.plugins.whenPluginAdded { plugin ->
-                if (plugin is JavaPlugin)
+                if (plugin is JavaPlugin) {
                     makeAsDependency(sourceDir)
+                }
             }
         }
     }
@@ -177,12 +182,12 @@ abstract class CompileThrift : DefaultTask() {
 
         val sourceSetContainer = project.extensions.getByType(SourceSetContainer::class.java)
         val sourceSet = sourceSetContainer.getByName(SourceSet.MAIN_SOURCE_SET_NAME)
-        val javaSourceDirs = sourceSet.java.srcDirs
 
         if (oldDir != null) {
-            javaSourceDirs.remove(oldDir)
+            sourceSet.java.srcDirs.remove(oldDir)
         }
-        javaSourceDirs.add(genJava.absoluteFile)
+        sourceSet.java.srcDir(genJava.absoluteFile)
+
         compileJava.dependsOn(this)
     }
 
