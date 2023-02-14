@@ -8,7 +8,14 @@ import org.gradle.api.model.ObjectFactory
 import org.gradle.api.plugins.JavaPlugin
 import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Property
-import org.gradle.api.tasks.*
+import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.InputFiles
+import org.gradle.api.tasks.Internal
+import org.gradle.api.tasks.Optional
+import org.gradle.api.tasks.OutputDirectory
+import org.gradle.api.tasks.SourceSet
+import org.gradle.api.tasks.SourceSetContainer
+import org.gradle.api.tasks.TaskAction
 import org.gradle.process.ExecOperations
 import org.gradle.work.ChangeType
 import org.gradle.work.Incremental
@@ -89,7 +96,7 @@ abstract class CompileThrift : DefaultTask() {
     }
 
     fun createGenFolder(createGenFolder: Boolean) {
-        if (this.createGenFolder.getOrElse(false) == createGenFolder)
+        if (this.createGenFolder.getOrElse(true) == createGenFolder)
             return
         val oldOutputDir = currentOutputDir()
         this.createGenFolder.set(createGenFolder)
@@ -156,13 +163,13 @@ abstract class CompileThrift : DefaultTask() {
         includeDirs.from(dir)
     }
 
-    private fun addSourceDir(sourceDir: File?) {
+    private fun addSourceDir(oldOutputDir: File?) {
         if (project.plugins.hasPlugin("java"))
-            makeAsDependency(sourceDir)
+            makeAsDependency(oldOutputDir)
         else {
             project.plugins.whenPluginAdded { plugin ->
                 if (plugin is JavaPlugin) {
-                    makeAsDependency(sourceDir)
+                    makeAsDependency(oldOutputDir)
                 }
             }
         }
