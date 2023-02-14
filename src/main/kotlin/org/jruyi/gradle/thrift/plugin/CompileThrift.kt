@@ -125,7 +125,7 @@ abstract class CompileThrift : DefaultTask() {
             return item
         }
 
-        val result = File(item.toString());
+        val result = File(item.toString())
         if (result.exists()) {
             return result
         }
@@ -184,7 +184,10 @@ abstract class CompileThrift : DefaultTask() {
         val sourceSet = sourceSetContainer.getByName(SourceSet.MAIN_SOURCE_SET_NAME)
 
         if (oldDir != null) {
-            sourceSet.java.srcDirs.remove(oldDir)
+            val filteredJavaSrcDirs = sourceSet.java.sourceDirectories.filter { file ->
+                !file.equals(oldDir)
+            }.files
+            sourceSet.java.setSrcDirs(filteredJavaSrcDirs)
         }
         sourceSet.java.srcDir(genJava.absoluteFile)
 
