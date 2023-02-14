@@ -11,24 +11,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.jruyi.gradle.thrift.plugin
 
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 
-class ThriftPlugin implements Plugin<Project> {
+internal class ThriftPlugin : Plugin<Project> {
+    override fun apply(project: Project) {
+        project.tasks.register(COMPILE_THRIFT_TASK, CompileThrift::class.java)
+    }
 
-	public static final String COMPILE_THRIFT_TASK = 'compileThrift'
-
-	@Override
-	void apply(Project project) {
-
-		def srcDir = "${project.projectDir}/src/main/thrift"
-		def dstDir = "${project.buildDir}/generated-sources/thrift"
-
-		CompileThrift compileThrift = project.tasks.create(COMPILE_THRIFT_TASK, CompileThrift)
-		compileThrift.sourceDir(srcDir)
-		compileThrift.outputDir(dstDir)
-	}
+    companion object {
+        const val COMPILE_THRIFT_TASK = "compileThrift"
+    }
 }

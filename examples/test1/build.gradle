@@ -46,11 +46,11 @@ repositories {
 }
 
 dependencies {
-	compile 'org.apache.thrift:libthrift:0.14.1'
+	implementation 'org.apache.thrift:libthrift:0.14.1'
 }
 
 compileThrift {
-	thriftExecutable "thrift"
+	thriftExecutable "/Users/ST20480/develop/temp/thrift-0.13.0"
 	sourceDir "$projectDir/src/main/thrift"
 	outputDir "$buildDir/gen-src"
 
@@ -59,9 +59,6 @@ compileThrift {
 	verbose true
 	recurse true
 	debug true
-	allowNegKeys true
-	allow64bitsConsts true
-	createGenFolder false
 
 	generator 'java', 'private-members'
 }
