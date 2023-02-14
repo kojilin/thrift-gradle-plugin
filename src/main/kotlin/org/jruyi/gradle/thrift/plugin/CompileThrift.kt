@@ -31,15 +31,18 @@ abstract class CompileThrift : DefaultTask() {
     abstract val includeDirs: ConfigurableFileCollection
 
     @get:Input
+    @get:Optional
     abstract val thriftExecutable: Property<String>
 
     @get:Input
     abstract val generators: MapProperty<String, String>
 
     @get:Input
+    @get:Optional
     abstract val createGenFolder: Property<Boolean>
 
     @get:Input
+    @get:Optional
     abstract val recurse: Property<Boolean>
 
     @get:Internal
@@ -61,13 +64,6 @@ abstract class CompileThrift : DefaultTask() {
     abstract val objectFactory: ObjectFactory
 
     init {
-        recurse.set(false)
-        nowarn.set(false)
-        strict.set(false)
-        verbose.set(false)
-        debug.set(false)
-        thriftExecutable.set("thrift")
-        createGenFolder.set(true)
         sourceDir("${project.projectDir}/src/main/thrift")
         outputDir("${project.buildDir}/generated-sources/thrift")
     }
@@ -93,7 +89,7 @@ abstract class CompileThrift : DefaultTask() {
     }
 
     fun createGenFolder(createGenFolder: Boolean) {
-        if (this.createGenFolder.get() == createGenFolder)
+        if (this.createGenFolder.getOrElse(false) == createGenFolder)
             return
         val oldOutputDir = currentOutputDir()
         this.createGenFolder.set(createGenFolder)
@@ -199,7 +195,7 @@ abstract class CompileThrift : DefaultTask() {
         if (outDirFile.orNull == null) {
             return null
         }
-        return if (createGenFolder.get()) {
+        return if (createGenFolder.getOrElse(true)) {
             File(outDirFile.get(), "gen-java")
         } else {
             outDirFile.orNull
@@ -233,8 +229,8 @@ abstract class CompileThrift : DefaultTask() {
 
     private fun compile(source: String) {
         val cmdLine = mutableListOf(
-            thriftExecutable.get(),
-            if (createGenFolder.get()) {
+            thriftExecutable.getOrElse("thrift"),
+            if (createGenFolder.getOrElse(true)) {
                 "-o"
             } else {
                 "-out"
@@ -255,19 +251,19 @@ abstract class CompileThrift : DefaultTask() {
             cmdLine += "-I"
             cmdLine += includeDir.absolutePath
         }
-        if (recurse.get()) {
+        if (recurse.getOrElse(false)) {
             cmdLine += "-r"
         }
-        if (nowarn.get()) {
+        if (nowarn.getOrElse(false)) {
             cmdLine += "-nowarn"
         }
-        if (strict.get()) {
+        if (strict.getOrElse(false)) {
             cmdLine += "-strict"
         }
-        if (verbose.get()) {
+        if (verbose.getOrElse(false)) {
             cmdLine += "-v"
         }
-        if (debug.get()) {
+        if (debug.getOrElse(false)) {
             cmdLine += "-debug"
         }
         cmdLine += source
