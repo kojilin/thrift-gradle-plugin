@@ -167,9 +167,9 @@ abstract class CompileThrift : DefaultTask() {
             return
         }
 
-        val oldOutputDir = currentJavaOutputDir()
+        val oldJavaOutputDir = currentJavaOutputDir()
         this.outputDir = outputDirFile
-        addSourceDir(oldOutputDir)
+        addSourceDir(oldJavaOutputDir)
     }
 
     private fun addSourceDir(oldJavaOutputDir: File?) {
