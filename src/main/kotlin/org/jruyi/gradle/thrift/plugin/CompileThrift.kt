@@ -322,7 +322,7 @@ abstract class CompileThrift : DefaultTask() {
                     .matching {
                         it.include("**/*.thrift")
                     }
-                    .forEach { it ->
+                    .forEach {
                         resolvedSourceItems.add(it.absolutePath)
                     }
             } else if (!file.exists()) {
