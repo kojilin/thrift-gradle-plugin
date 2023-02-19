@@ -23,7 +23,6 @@ import javax.inject.Inject
 
 
 abstract class CompileThrift : DefaultTask() {
-
     // To avoid user access Property#set directly, we can't use Property API here.
     // Because setting these 3 fields need to update source folder setting.
     private val generators: MutableMap<String, String> = HashMap()
