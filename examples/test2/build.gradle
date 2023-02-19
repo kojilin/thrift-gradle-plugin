@@ -1,7 +1,7 @@
 buildscript {
 	repositories {
 		mavenLocal()
-		jcenter()
+		mavenCentral()
 	}
 	dependencies {
 		classpath 'org.jruyi.gradle:thrift-gradle-plugin:+'
@@ -12,9 +12,13 @@ apply plugin: 'java'
 apply plugin: 'org.jruyi.thrift'
 
 repositories {
-	jcenter()
+	mavenCentral()
 }
 
 dependencies {
-	compile 'org.apache.thrift:libthrift:0.14.1'
+	implementation 'org.apache.thrift:libthrift:0.14.1'
+}
+
+compileThrift {
+	thriftExecutable "thrift"
 }

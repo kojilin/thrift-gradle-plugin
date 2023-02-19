@@ -52,7 +52,7 @@ dependencies {
 compileThrift {
     thriftExecutable "thrift"
     sourceDir "$projectDir/src/main/thrift"
-    outputDir "$buildDir/gen-src"
+    outputDir layout.buildDirectory.dir("generated-sources/thrift")
 
     nowarn true
     strict true
@@ -60,7 +60,9 @@ compileThrift {
     recurse true
     debug true
 
-    generator 'java', 'private-members'
+    generator 'perl'
+    generator 'html'
+    generator 'json'
 }
 
 task printSourceSetInformation {

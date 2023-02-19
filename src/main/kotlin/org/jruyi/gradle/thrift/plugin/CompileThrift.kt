@@ -3,10 +3,8 @@ package org.jruyi.gradle.thrift.plugin
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.file.ConfigurableFileCollection
-import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.plugins.JavaPlugin
-import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFiles
@@ -26,12 +24,25 @@ import javax.inject.Inject
 
 abstract class CompileThrift : DefaultTask() {
 
+    // To avoid user access Property#set directly, we can't use Property API here.
+    // Because setting these 3 fields need to update source folder setting.
+    private val generators: MutableMap<String, String> = HashMap()
+
+    private var outputDir: File? = null
+
+    @get:Input
+    var createGenFolder: Boolean = true
+        set(value) {
+            if (field == value)
+                return
+            val oldJavaOutputDir = currentJavaOutputDir()
+            field = value
+            addSourceDir(oldJavaOutputDir)
+        }
+
     @get:Incremental
     @get:InputFiles
     abstract val sourceItems: ConfigurableFileCollection
-
-    @get:OutputDirectory
-    abstract val outputDir: DirectoryProperty
 
     @get:Incremental
     @get:InputFiles
@@ -40,13 +51,6 @@ abstract class CompileThrift : DefaultTask() {
     @get:Input
     @get:Optional
     abstract val thriftExecutable: Property<String>
-
-    @get:Input
-    abstract val generators: MapProperty<String, String>
-
-    @get:Input
-    @get:Optional
-    abstract val createGenFolder: Property<Boolean>
 
     @get:Input
     @get:Optional
@@ -95,24 +99,6 @@ abstract class CompileThrift : DefaultTask() {
         this.debug.set(debug)
     }
 
-    fun createGenFolder(createGenFolder: Boolean) {
-        if (this.createGenFolder.getOrElse(true) == createGenFolder)
-            return
-        val oldOutputDir = currentOutputDir()
-        this.createGenFolder.set(createGenFolder)
-        addSourceDir(oldOutputDir)
-    }
-
-    fun generator(gen: String, vararg args: String) {
-        val options =
-            if (args.isEmpty()) {
-                ""
-            } else {
-                args.joinToString(separator = ",") { it.trim() }
-            }
-        generators.put(gen.trim(), options)
-    }
-
     fun sourceDir(sourceDir: Any) {
         sourceItems(sourceDir)
     }
@@ -140,18 +126,9 @@ abstract class CompileThrift : DefaultTask() {
         this.thriftExecutable.set(thriftExecutable)
     }
 
-    fun outputDir(outputDirInput: Any) {
-        val outputDirFile: File = if (outputDirInput is File) {
-            outputDirInput
-        } else {
-            project.file(outputDirInput)
-        }
-        if (this.outputDir.asFile.orNull == outputDirFile)
-            return
-
-        val oldOutputDir = currentOutputDir()
-        this.outputDir.set(outputDirFile)
-        addSourceDir(oldOutputDir)
+    @Input
+    fun getGenerators(): Map<String, String> {
+        return generators
     }
 
     fun includeDir(includeDirInput: Any) {
@@ -163,13 +140,46 @@ abstract class CompileThrift : DefaultTask() {
         includeDirs.from(dir)
     }
 
-    private fun addSourceDir(oldOutputDir: File?) {
+    fun generator(gen: String, vararg args: String) {
+        val options =
+            if (args.isEmpty()) {
+                ""
+            } else {
+                args.joinToString(separator = ",") { it.trim() }
+            }
+
+        val oldJavaOutputDir = currentJavaOutputDir()
+        this.generators[gen.trim()] = options
+        addSourceDir(oldJavaOutputDir)
+    }
+
+    @OutputDirectory
+    fun getOutputDir(): File? {
+        return this.outputDir
+    }
+
+    fun outputDir(outputDirInput: Any) {
+        val outputDirFile: File = if (outputDirInput is File) {
+            outputDirInput
+        } else {
+            project.file(outputDirInput)
+        }
+        if (this.outputDir == outputDirFile) {
+            return
+        }
+
+        val oldOutputDir = currentJavaOutputDir()
+        this.outputDir = outputDirFile
+        addSourceDir(oldOutputDir)
+    }
+
+    private fun addSourceDir(oldJavaOutputDir: File?) {
         if (project.plugins.hasPlugin("java"))
-            makeAsDependency(oldOutputDir)
+            makeAsDependency(oldJavaOutputDir)
         else {
             project.plugins.whenPluginAdded { plugin ->
                 if (plugin is JavaPlugin) {
-                    makeAsDependency(oldOutputDir)
+                    makeAsDependency(oldJavaOutputDir)
                 }
             }
         }
@@ -178,8 +188,7 @@ abstract class CompileThrift : DefaultTask() {
     private fun makeAsDependency(oldDir: File?) {
         val compileJava = project.tasks.findByName(JavaPlugin.COMPILE_JAVA_TASK_NAME) ?: return
 
-        generators.put("java", "")
-        val genJava = currentOutputDir()?.canonicalFile ?: return
+        val genJava = currentJavaOutputDir()?.canonicalFile
         if (genJava == oldDir)
             return
 
@@ -192,20 +201,26 @@ abstract class CompileThrift : DefaultTask() {
             }.files
             sourceSet.java.setSrcDirs(filteredJavaSrcDirs)
         }
-        sourceSet.java.srcDir(genJava.absoluteFile)
 
+        if (genJava != null) {
+            sourceSet.java.srcDir(genJava.absoluteFile)
+        }
+
+        // For backward compatibility, even we don't has gen generator, we still keep it's task dependency
         compileJava.dependsOn(this)
     }
 
-    private fun currentOutputDir(): File? {
-        val outDirFile = outputDir.asFile
-        if (outDirFile.orNull == null) {
+    private fun currentJavaOutputDir(): File? {
+        val outDirFile = outputDir ?: return null
+
+        if (!generators.containsKey("java")) {
             return null
         }
-        return if (createGenFolder.getOrElse(true)) {
-            File(outDirFile.get(), "gen-java")
+
+        return if (createGenFolder) {
+            File(outDirFile, "gen-java")
         } else {
-            outDirFile.orNull
+            outDirFile
         }
     }
 
@@ -221,9 +236,9 @@ abstract class CompileThrift : DefaultTask() {
             compileAll()
             return
         }
-        val output = outputDir.asFile.get()
+        val output = outputDir ?: throw GradleException("outputDir must not be null")
         if (!output.exists() && !output.mkdirs()) {
-            throw GradleException("Could not create thrift output directory: ${outputDir.asFile.get().absolutePath}")
+            throw GradleException("Could not create thrift output directory: ${output.absolutePath}")
         }
         fileChanges
             .filter { change -> change.file.name.endsWith("thrift") }
@@ -235,16 +250,20 @@ abstract class CompileThrift : DefaultTask() {
     }
 
     private fun compile(source: String) {
+        if (generators.isEmpty()) {
+            throw GradleException("Must specify generator")
+        }
+        val output = outputDir ?: throw GradleException("outputDir must not be null")
         val cmdLine = mutableListOf(
             thriftExecutable.getOrElse("thrift"),
-            if (createGenFolder.getOrElse(true)) {
+            if (createGenFolder) {
                 "-o"
             } else {
                 "-out"
             },
-            outputDir.asFile.get().absolutePath
+            output.absolutePath
         )
-        generators.get().entries.forEach { generator ->
+        generators.entries.forEach { generator ->
             cmdLine += "--gen"
             var cmd = generator.key.trim()
             val options = generator.value.trim()
@@ -286,7 +305,7 @@ abstract class CompileThrift : DefaultTask() {
     }
 
     private fun compileAll() {
-        val outputDirFile = outputDir.get().asFile
+        val outputDirFile = outputDir ?: throw GradleException("outputDir must not be null")
         if (!outputDirFile.deleteRecursively()) {
             throw GradleException("Could not delete thrift output directory: ${outputDirFile.absolutePath}")
         }
