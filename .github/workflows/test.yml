@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        java: [ '8', '11' ]
+        java: [ '17' ]
     steps:
       - name: actions/setup-java@v3 (JDK ${{ matrix.java }})
         uses: actions/setup-java@v3
@@ -23,8 +23,8 @@ jobs:
       - name: Setup Gradle
         uses: gradle/gradle-build-action@v2
     
-      - name: Execute Gradle test
-        run: ./gradlew test check
+      - name: Execute Gradle build
+        run: ./gradlew build
 
       - name: Upload test results
         uses: actions/upload-artifact@v3

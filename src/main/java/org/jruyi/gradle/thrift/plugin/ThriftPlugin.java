@@ -34,7 +34,9 @@ import org.gradle.api.Project;
 
 public class ThriftPlugin implements Plugin<Project> {
 
-    public static final String COMPILE_THRIFT_TASK = "compileThrift";
+    // Forked from https://github.com/jruyi/thrift-gradle-plugin/blob/aef83035ffe141b0507f5a2254aa1f7193976c4a/src/main/groovy/org/jruyi/gradle/thrift/plugin/ThriftPlugin.groovy
+
+    static public final String COMPILE_THRIFT_TASK = "compileThrift";
 
     @Override
     public void apply(Project project) {
