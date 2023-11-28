@@ -42,6 +42,8 @@ public abstract class CompileThriftExtension {
 
     public abstract Property<Boolean> getAutoDetectPlugin();
 
+    public abstract Property<Boolean> getPreferKotlin();
+
     public abstract MapProperty<String, String> getGenerators();
 
     public abstract ConfigurableFileCollection getSourceItems();
@@ -76,6 +78,10 @@ public abstract class CompileThriftExtension {
 
     public void autoDetectPlugin(boolean autoDetectPlugin) {
         getAutoDetectPlugin().set(autoDetectPlugin);
+    }
+
+    public void preferKotlin(boolean preferKotlin) {
+        getPreferKotlin().set(preferKotlin);
     }
 
     public void createGenFolder(boolean createGenFolder) {

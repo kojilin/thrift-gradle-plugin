@@ -52,15 +52,20 @@ public class ThriftPlugin implements Plugin<Project> {
     private static void detectJavaPlugin(Project project, CompileThriftExtension extension,
                                          TaskProvider<CompileThrift> compileThriftTaskProvider) {
         project.getPluginManager().withPlugin("java", appliedPlugin -> {
-            // In the future if we start to support kotlin, we may need to let user choose which one they want
-            // to generate.
-            extension.getGenerators().putAll(extension.getAutoDetectPlugin().map(autoDetect -> {
-                final Map<String, String> map = new HashMap<>();
-                if (autoDetect && !project.getPluginManager().hasPlugin("org.jetbrains.kotlin.jvm")) {
-                    map.put("java", "");
-                }
-                return map;
-            }));
+            extension.getGenerators()
+                     .putAll(extension.getAutoDetectPlugin()
+                                      .zip(extension.getPreferKotlin(), (autoDetect, preferKotlin) -> {
+                                          if (!autoDetect) {
+                                              return Collections.emptyMap();
+                                          }
+                                          final Map<String, String> map = new HashMap<>();
+                                          if (!preferKotlin ||
+                                              !project.getPluginManager()
+                                                      .hasPlugin("org.jetbrains.kotlin.jvm")) {
+                                              map.put("java", "");
+                                          }
+                                          return map;
+                                      }));
 
             project.getTasks().named(JavaPlugin.COMPILE_JAVA_TASK_NAME).configure(task -> {
                 task.dependsOn(extension.getGenerators().flatMap(generators -> {
@@ -98,15 +103,18 @@ public class ThriftPlugin implements Plugin<Project> {
     private static void detectKotlinPlugin(Project project, CompileThriftExtension extension,
                                            TaskProvider<CompileThrift> compileThriftTaskProvider) {
         project.getPluginManager().withPlugin("org.jetbrains.kotlin.jvm", appliedPlugin -> {
-            // In the future if we start to support kotlin, we may need to let user choose which one they want
-            // to generate.
-            extension.getGenerators().putAll(extension.getAutoDetectPlugin().map(autoDetect -> {
-                final Map<String, String> map = new HashMap<>();
-                if (autoDetect) {
-                    map.put("kotlin", "");
-                }
-                return map;
-            }));
+            extension.getGenerators().putAll(
+                    extension.getAutoDetectPlugin()
+                             .zip(extension.getPreferKotlin(), (autoDetect, preferKotlin) -> {
+                                 if (!autoDetect) {
+                                     return Collections.emptyMap();
+                                 }
+                                 final Map<String, String> map = new HashMap<>();
+                                 if (preferKotlin || !project.getPluginManager().hasPlugin("java")) {
+                                     map.put("kotlin", "");
+                                 }
+                                 return map;
+                             }));
 
             project.getTasks().named("compileKotlin").configure(task -> {
                 task.dependsOn(extension.getGenerators().flatMap(generators -> {
@@ -192,6 +200,7 @@ public class ThriftPlugin implements Plugin<Project> {
         extension.getDebug().convention(false);
         extension.getRecurse().convention(false);
         extension.getAutoDetectPlugin().convention(true);
+        extension.getPreferKotlin().convention(false);
         extension.getCreateGenFolder().convention(true);
         extension.getOutputDir().convention(
                 project.getLayout().getBuildDirectory().dir("generated-sources/thrift"));
