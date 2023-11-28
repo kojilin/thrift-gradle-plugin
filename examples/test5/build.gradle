@@ -47,4 +47,5 @@ compileThrift {
     recurse true
     debug true
     createGenFolder false
+    preferKotlin true
 }
