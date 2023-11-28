@@ -45,23 +45,6 @@ public class ThriftPluginTest {
     @BeforeEach
     public void setup() throws Exception {
         buildFile = projectDir.resolve("build.gradle");
-        Files.write(buildFile,
-                    Collections.singletonList(
-                            "    plugins { \n" +
-                            "        id \"java\" \n" +
-                            "        id \"com.linecorp.thrift-gradle-plugin\" \n" +
-                            "        id \"com.google.osdetector\" version \"1.7.3\" \n" +
-                            "    }\n" +
-                            "     repositories {\n" +
-                            "         mavenCentral()\n" +
-                            "     }\n" +
-                            "     dependencies {\n" +
-                            "        implementation 'javax.annotation:javax.annotation-api:1.3.2'\n" +
-                            "        implementation 'org.slf4j:slf4j-api:2.0.7'\n" +
-                            "        implementation 'org.apache.thrift:libthrift:0.17.0'\n" +
-                            "    }"),
-                    StandardOpenOption.CREATE);
-
         thriftPathExpression = Paths.get("lib/thrift/0.17.0").toAbsolutePath() +
                                "/thrift.${osdetector.classifier}";
     }
@@ -78,11 +61,7 @@ public class ThriftPluginTest {
                             "    }\n" +
                             "     repositories {\n" +
                             "         mavenCentral()\n" +
-                            "    }"),
-                    StandardOpenOption.TRUNCATE_EXISTING);
-
-        Files.write(buildFile,
-                    Collections.singletonList(
+                            "    }\n" +
                             "    compileThrift {\n" +
                             "        thriftExecutable \"" + thriftPathExpression + "\"\n" +
                             "        sourceDir \"src/main/thrift\"\n" +
@@ -96,7 +75,7 @@ public class ThriftPluginTest {
                             "        generator 'html'\n" +
                             "        generator 'json'\n" +
                             "    }\n"),
-                    StandardOpenOption.APPEND);
+                    StandardOpenOption.CREATE);
 
         final BuildResult gradle = GradleRunner.create()
                                                .withProjectDir(projectDir.toFile())
@@ -129,6 +108,7 @@ public class ThriftPluginTest {
     @ValueSource(strings = { "7.6", "8.0", "8.1" })
     public void generateJavaWithSimpleConfig(String version) throws Exception {
         copyFile(Paths.get("src/test/resources/test.thrift"), projectDir.resolve("src/main/thrift"));
+        prepareJavaProjectBuildFile();
         Files.write(buildFile,
                     Collections.singletonList(
                             "    compileThrift {\n" +
@@ -161,6 +141,7 @@ public class ThriftPluginTest {
     @ValueSource(strings = { "7.6", "8.0", "8.1" })
     public void generateJavaChangeOutputDirectory(String version) throws Exception {
         copyFile(Paths.get("src/test/resources/test.thrift"), projectDir.resolve("src/main/thrift"));
+        prepareJavaProjectBuildFile();
         Files.write(buildFile,
                     Collections.singletonList(
                             "    compileThrift {\n" +
@@ -195,7 +176,7 @@ public class ThriftPluginTest {
     @ValueSource(strings = { "7.6", "8.0", "8.1" })
     public void generateJavaUsingDifferentSourceDirectory(String version) throws Exception {
         copyFile(Paths.get("src/test/resources/test.thrift"), projectDir.resolve("thrift"));
-
+        prepareJavaProjectBuildFile();
         Files.write(buildFile,
                     Collections.singletonList(
                             "    compileThrift {\n" +
@@ -231,6 +212,7 @@ public class ThriftPluginTest {
         copyFile(Paths.get("src/test/resources/test.thrift"), projectDir.resolve("thrift1"));
         copyFile(Paths.get("src/test/resources/test2.thrift"), projectDir.resolve("thrift2"));
 
+        prepareJavaProjectBuildFile();
         Files.write(buildFile,
                     Collections.singletonList(
                             "    compileThrift {\n" +
@@ -268,6 +250,8 @@ public class ThriftPluginTest {
     @ValueSource(strings = { "7.6", "8.0", "8.1" })
     public void generateJava(String version) throws Exception {
         copyFile(Paths.get("src/test/resources/test.thrift"), projectDir.resolve("src/main/thrift"));
+
+        prepareJavaProjectBuildFile();
         Files.write(buildFile,
                     Collections.singletonList(
                             "    compileThrift {\n" +
@@ -315,6 +299,8 @@ public class ThriftPluginTest {
     @ValueSource(strings = { "7.6", "8.0", "8.1" })
     public void generateJavaUsingLazyPropertyApi(String version) throws Exception {
         copyFile(Paths.get("src/test/resources/test.thrift"), projectDir.resolve("src/main/thrift"));
+
+        prepareJavaProjectBuildFile();
         Files.write(buildFile,
                     Collections.singletonList(
                             "    compileThrift {\n" +
@@ -362,6 +348,8 @@ public class ThriftPluginTest {
     @ValueSource(strings = { "7.6", "8.0", "8.1" })
     public void generateNonJava(String version) throws Exception {
         copyFile(Paths.get("src/test/resources/test.thrift"), projectDir.resolve("src/main/thrift"));
+
+        prepareJavaProjectBuildFile();
         Files.write(buildFile,
                     Collections.singletonList(
                             "    compileThrift {\n" +
@@ -410,6 +398,8 @@ public class ThriftPluginTest {
     @ValueSource(strings = { "7.6", "8.0", "8.1" })
     public void generateNonJavaWithoutJavaFile(String version) throws Exception {
         copyFile(Paths.get("src/test/resources/test.thrift"), projectDir.resolve("src/main/thrift"));
+
+        prepareJavaProjectBuildFile();
         Files.write(buildFile,
                     Collections.singletonList(
                             "    compileThrift {\n" +
@@ -459,6 +449,8 @@ public class ThriftPluginTest {
     @ValueSource(strings = { "7.6", "8.0", "8.1" })
     public void incremental(String version) throws Exception {
         copyFile(Paths.get("src/test/resources/test.thrift"), projectDir.resolve("src/main/thrift"));
+
+        prepareJavaProjectBuildFile();
         Files.write(buildFile,
                     Collections.singletonList(
                             "    import com.linecorp.thrift.plugin.CompileThrift\n" +
@@ -502,8 +494,121 @@ public class ThriftPluginTest {
         assertThat(gradle.getOutput()).contains("test2.thrift");
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = { "7.6", "8.0", "8.1" })
+    public void generateJavaWithSimpleConfigAndKotlinPlugin(String version) throws Exception {
+        copyFile(Paths.get("src/test/resources/test.thrift"), projectDir.resolve("src/main/thrift"));
+        prepareKotlinProjectBuildFile();
+        Files.write(buildFile,
+                    Collections.singletonList(
+                            "    compileThrift {\n" +
+                            "        thriftExecutable \"" + thriftPathExpression + "\"\n" +
+                            "    }\n"),
+                    StandardOpenOption.APPEND);
+
+        final BuildResult gradle = GradleRunner.create()
+                                               .withProjectDir(projectDir.toFile())
+                                               .withGradleVersion(version)
+                                               .withArguments(Arrays.asList("compileJava", "--info"))
+                                               .withPluginClasspath()
+                                               .build();
+
+        assertThat(gradle.task(":compileThrift").getOutcome()).isEqualTo(TaskOutcome.SUCCESS);
+        assertThat(gradle.getOutput()).contains("-o " + projectDir.toFile().getCanonicalPath());
+        assertThat(projectDir.resolve("build/generated-sources/thrift/gen-java")
+                             .resolve("com/linecorp/thrift/plugin/test/TestService.java")
+        ).exists();
+        assertThat(projectDir.resolve("build/generated-sources/thrift/gen-java")
+                             .resolve("com/linecorp/thrift/plugin/test/TestStruct.java")
+        ).exists();
+
+        assertThat(projectDir.resolve("build/classes/java/main")
+                             .resolve("com/linecorp/thrift/plugin/test/TestStruct.class")
+        ).exists();
+
+        assertThat(projectDir.resolve("build/generated-sources/thrift/")
+                             .resolve("com/linecorp/thrift/plugin/test/TestStruct.kt")
+        ).doesNotExist();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = { "7.6", "8.0", "8.1" })
+    public void generateKotlinWithSimpleConfigAndKotlinPlugin(String version) throws Exception {
+        copyFile(Paths.get("src/test/resources/test.thrift"), projectDir.resolve("src/main/thrift"));
+        prepareKotlinProjectBuildFile();
+        Files.write(buildFile,
+                    Collections.singletonList(
+                            "    compileThrift {\n" +
+                            "        thriftExecutable \"" + thriftPathExpression + "\"\n" +
+                            "        preferKotlin true\n" +
+                            "    }\n"),
+                    StandardOpenOption.APPEND);
+
+        final BuildResult gradle = GradleRunner.create()
+                                               .withProjectDir(projectDir.toFile())
+                                               .withGradleVersion(version)
+                                               .withArguments(Arrays.asList("compileJava", "--info"))
+                                               .withPluginClasspath()
+                                               .build();
+
+        assertThat(gradle.task(":compileThrift").getOutcome()).isEqualTo(TaskOutcome.SUCCESS);
+        assertThat(gradle.getOutput()).contains("-o " + projectDir.toFile().getCanonicalPath());
+        assertThat(projectDir.resolve("build/generated-sources/thrift/gen-java")
+                             .resolve("com/linecorp/thrift/plugin/test/TestService.java")
+        ).doesNotExist();
+
+        assertThat(projectDir.resolve("build/generated-sources/thrift/")
+                             .resolve("com/linecorp/thrift/plugin/test/TestStruct.kt")
+        ).exists();
+
+        assertThat(projectDir.resolve("build/classes/kotlin/main")
+                             .resolve("com/linecorp/thrift/plugin/test/TestStruct.class")
+        ).exists();
+    }
+
     private Path copyFile(Path source, Path targetDirectory) throws IOException {
         Files.createDirectories(targetDirectory);
         return Files.copy(source, targetDirectory.resolve(source.getFileName()));
+    }
+
+    private void prepareJavaProjectBuildFile() throws IOException {
+        Files.write(buildFile,
+                    Collections.singletonList(
+                            "    plugins { \n" +
+                            "        id \"java\" \n" +
+                            "        id \"com.linecorp.thrift-gradle-plugin\" \n" +
+                            "        id \"com.google.osdetector\" version \"1.7.3\" \n" +
+                            "    }\n" +
+                            "     repositories {\n" +
+                            "         mavenCentral()\n" +
+                            "     }\n" +
+                            "     dependencies {\n" +
+                            "        implementation 'javax.annotation:javax.annotation-api:1.3.2'\n" +
+                            "        implementation 'org.slf4j:slf4j-api:2.0.7'\n" +
+                            "        implementation 'org.apache.thrift:libthrift:0.17.0'\n" +
+                            "    }"),
+                    StandardOpenOption.CREATE);
+    }
+
+    private void prepareKotlinProjectBuildFile() throws IOException {
+        Files.write(buildFile,
+                    Collections.singletonList(
+                            "    plugins { \n" +
+                            "        id \"org.jetbrains.kotlin.jvm\" version \"1.9.21\" \n" +
+                            "        id \"com.linecorp.thrift-gradle-plugin\" \n" +
+                            "        id \"com.google.osdetector\" version \"1.7.3\" \n" +
+                            "    }\n" +
+                            "     repositories {\n" +
+                            "         mavenCentral()\n" +
+                            "     }\n" +
+                            "     dependencies {\n" +
+                            "        implementation 'javax.annotation:javax.annotation-api:1.3.2'\n" +
+                            "        implementation 'org.apache.thrift:libthrift:0.17.0'\n" +
+                            "        implementation platform('org.jetbrains.kotlin:kotlin-bom')\n" +
+                            "        implementation 'org.jetbrains.kotlin:kotlin-stdlib-jdk8'\n" +
+                            "        implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-jdk8:1.7.3'\n" +
+                            "        implementation 'org.slf4j:slf4j-api:2.0.7'\n" +
+                            "    }"),
+                    StandardOpenOption.CREATE);
     }
 }
