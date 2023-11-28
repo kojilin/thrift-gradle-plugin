@@ -26,6 +26,7 @@ import java.util.Map;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.file.Directory;
+import org.gradle.api.file.SourceDirectorySet;
 import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.provider.Provider;
 import org.gradle.api.tasks.SourceSet;
@@ -44,12 +45,18 @@ public class ThriftPlugin implements Plugin<Project> {
         final CompileThriftExtension extension = createExtension(project);
         final TaskProvider<CompileThrift> compileThriftTaskProvider = registerDefaultTask(project, extension);
 
+        detectJavaPlugin(project, extension, compileThriftTaskProvider);
+        detectKotlinPlugin(project, extension, compileThriftTaskProvider);
+    }
+
+    private static void detectJavaPlugin(Project project, CompileThriftExtension extension,
+                                         TaskProvider<CompileThrift> compileThriftTaskProvider) {
         project.getPluginManager().withPlugin("java", appliedPlugin -> {
             // In the future if we start to support kotlin, we may need to let user choose which one they want
             // to generate.
             extension.getGenerators().putAll(extension.getAutoDetectPlugin().map(autoDetect -> {
                 final Map<String, String> map = new HashMap<>();
-                if (autoDetect) {
+                if (autoDetect && !project.getPluginManager().hasPlugin("org.jetbrains.kotlin.jvm")) {
                     map.put("java", "");
                 }
                 return map;
@@ -85,6 +92,49 @@ public class ThriftPlugin implements Plugin<Project> {
                 }
             });
             mainSourceSet.getJava().srcDir(outputDirectory);
+        });
+    }
+
+    private static void detectKotlinPlugin(Project project, CompileThriftExtension extension,
+                                           TaskProvider<CompileThrift> compileThriftTaskProvider) {
+        project.getPluginManager().withPlugin("org.jetbrains.kotlin.jvm", appliedPlugin -> {
+            // In the future if we start to support kotlin, we may need to let user choose which one they want
+            // to generate.
+            extension.getGenerators().putAll(extension.getAutoDetectPlugin().map(autoDetect -> {
+                final Map<String, String> map = new HashMap<>();
+                if (autoDetect) {
+                    map.put("kotlin", "");
+                }
+                return map;
+            }));
+
+            project.getTasks().named("compileKotlin").configure(task -> {
+                task.dependsOn(extension.getGenerators().flatMap(generators -> {
+                    if (generators.containsKey("kotlin")) {
+                        return compileThriftTaskProvider;
+                    } else {
+                        return project.provider(ArrayList::new);
+                    }
+                }));
+            });
+
+            final SourceSetContainer sourceSetContainer =
+                    project.getExtensions().getByType(SourceSetContainer.class);
+            final SourceSet mainSourceSet = sourceSetContainer.getByName(SourceSet.MAIN_SOURCE_SET_NAME);
+            final Provider<Object> outputDirectory = extension.getGenerators().flatMap(generators -> {
+                if (generators.containsKey("kotlin")) {
+                    // Thrift kotlin command doesn't support gen-*
+                    return compileThriftTaskProvider.flatMap(CompileThrift::getOutputDir);
+                } else {
+                    return project.provider(ArrayList::new);
+                }
+            });
+
+            final SourceDirectorySet kotlinSourceDirectorySet =
+                    (SourceDirectorySet) mainSourceSet.getExtensions().findByName("kotlin");
+            if (kotlinSourceDirectorySet != null) {
+                kotlinSourceDirectorySet.srcDir(outputDirectory);
+            }
         });
     }
 
